@@ -1,0 +1,310 @@
+ 
+493. Reverse Pairs
+Hard
+
+Given an integer array nums, return the number of reverse pairs in the array.
+A reverse pair is a pair (i, j) where 0 <= i < j < nums.length and nums[i] > 2 * nums[j].
+
+Example 1:
+Input: nums = [1,3,2,3,1]
+Output: 2 			(3,1), (3,1)
+
+Example 2:
+Input: nums = [2,4,3,5,1]
+Output: 3			(4,1), (3,1), (5,1)
+
+Constraints:
+1 <= nums.length <= 5 * 104
+-231 <= nums[i] <= 231 - 1
+
+
+Parent problem: Leetcode 315, Laicode 427
+
+315. Count of Smaller Numbers After Self
+Hard
+
+Given an integer array nums, return an integer array counts where counts[i] is the number of smaller elements to the right of nums[i].
+
+Example 1:
+Input: nums = [5,2,6,1]
+Output: [2,1,1,0]
+Explanation:
+To the right of 5 there are 2 smaller elements (2 and 1).
+To the right of 2 there is only 1 smaller element (1).
+To the right of 6 there is 1 smaller element (1).
+To the right of 1 there is 0 smaller element.
+
+Example 2:
+Input: nums = [-1]
+Output: [0]
+
+Example 3:
+Input: nums = [-1,-1]
+Output: [0,0]
+
+Constraints:
+1 <= nums.length <= 105
+-104 <= nums[i] <= 104
+
+
+Grandparent problem: Leetcode 912?, Laicode 9
+
+912. Sort an Array
+Medium
+Given an array of integers nums, sort the array in ascending order.
+ 
+Example 1:
+Input: nums = [5,2,3,1]
+Output: [1,2,3,5]
+
+Example 2:
+Input: nums = [5,1,1,2,0,0]
+Output: [0,0,1,1,2,5]
+
+ 
+Constraints:
+1 <= nums.length <= 5 * 104
+-5 * 104 <= nums[i] <= 5 * 104
+
+
+Grandparent problem的一种解（mergesort的一种写法）：
+
+High level:
+	每次把需要当前需要排序的数组分成两半分别排序，再根据谁小移谁（默认升序）的原则把两半合并
+
+Data structure:
+用helper array减少实际memory usage due to delay of garbage collection
+ 
+Complexity:
+	TC: O(n+nlogn)  = O(nlogn)
+	SC: O(n+logn) = O(n)
+ 
+Code:
+ 
+public int[] sortArray(int[] nums) {
+      if (nums==null || nums.length<2) {return nums;}
+      int len=nums.length;
+      int[] helper = new int[len];
+      mergeSort(nums,0,len-1,helper);
+      return nums;
+}
+private void mergeSort(int[] array, int left, int right, int[] helper) {
+      if (left==right) {return;}
+      int mid = left+(right-left)/2;
+      mergeSort(array,left,mid,helper);
+      mergeSort(array,mid+1,right,helper);
+      merge(array,left,mid,right,helper);
+}
+private void merge(int[] array, int left, int mid, int right, int[] helper) {
+      for (int i=left;i<=right;i++) {
+        helper[i]=array[i];
+      }
+      int leftIndex = left;
+      int rightIndex = mid+1;
+      int curIndex = left;
+      while (leftIndex<=mid && rightIndex<=right) {
+        if (helper[leftIndex]<=helper[rightIndex]) {
+          array[curIndex++]=helper[leftIndex++];
+        } else {
+          array[curIndex++]=helper[rightIndex++];
+        }
+      }
+      while (leftIndex<=mid) {
+        array[curIndex++]=helper[leftIndex++];
+      }
+}
+
+分析：
+
+= 使得sort stable （对于相等的数，原来在左边的排序完成后还是在左边）
+在自己右边比自己小的数，排序后会跑到自己左边
+在自己左边比自己大的数，排序后会跑到自己右边
+在自己右边有多少比自己小的数  -  在自己左边有多少比自己大的数，就是排序后自己的index就会增加多少
+
+假设我不想动input，可以先把input array deep copy一份到output array然后再排序 （根据extra space complexity的定义，这个甚至不改变SC）
+假设我不想动input，可以用一个index array来表示每一个数在input数组中的位置，然后只对这些index进行排序
+
+Input: nums = [5,2,3,1]
+input index = [0,1,2,3]
+output index = [3,1,2,0]
+equivalent output: [nums[3],nums[1],nums[2],nums[0]]
+equivalent output: [1,2,3,5]
+
+side note: 
+SC会增加
+same as define a comparator (a,b) -> Integer.compare(nums[a],nums[b])
+
+
+
+II. 怎样能得到parent problem的解？
+
+Given an integer array nums, return an integer array counts where counts[i] is the number of smaller elements to the right of nums[i].
+
+除了index array， 再增加一个array来记录每个初始index array里的index，有多少在它右边的index在排序后移到了它的左边，（举例：5的index是0，在排序后有3个元素从0的右边移到了0的左边），这就代表了在input array里有多少个比我小的数在我右边（有3个比5小的数在5右边）
+
+Input: nums = [5,2,3,1]
+Output: count = [3,1,1,0] 
+注意：
+NOT [0,1,1,3] which corresponds to array after sorting [1,2,3,5]
+当左右半边各有两个元素的时候，他们之间的相互关系已经在下一层记录过了
+			[5,2,3,1]
+->  [5,2]     +     [3,1]
+-> [5]+[2]   +   [3]+[1]
+-> [2(0),5(1)] + [1(0),3(1)]
+-> [1(0),2(1),3(1),5(3)] 
+
+High level:
+	用mergesort给index排序（只是为了最后写结果方便），同时记录每个index在归并时被右边一半index数组超越（不够小）的数量
+
+Data structure:
+	original index array: position[len]
+	shift counting array: shift[len]
+	index array helper function: helperPosition[len]
+	shift array helper function: helperShift[len]
+
+Complexity:
+	TC: O(n+n+nlogn+n) = O(nlogn)
+	SC: O(4n+logn) = O(n)
+
+Code: 
+// used as fields of “solution” class, mainly to simplify the function calling
+int[] shift, position, helperPosition, helperShift; 
+
+// position array indicates the original index of the number which was moved to current index (we are sorting index instead of number as mentioned in discussion #6 of grandparent problem)
+// shift array indicates how many numbers (or indices) are moved from my right to my left, which is how many numbers smaller than me was on my right high side
+// helperPosition is an helper array (reduces practical SC due to delay of GC) to sort position array
+// helperShift is an helper array (reduces practical SC due to delay of GC) to sort shift array
+
+public List<Integer> countSmaller(int[] nums) {
+        List<Integer> result = new ArrayList<>();
+        if (nums==null) {return result;}
+        int len=nums.length;
+        shift = new int[len];
+        position = new int[len];
+        for (int i=0;i<len;i++) {
+            position[i]=i; // current index
+            result.add(0);
+        }
+        helperPosition = new int[len];
+        helperShift = new int[len];
+        mergeSort(nums,0,len-1);  // merge sort
+        for (int i=0;i<len;i++) {
+            result.set(position[i],shift[i]);
+        }
+
+}
+private void mergeSort(int[] nums, int left, int right) {
+        if (left==right) {return;}
+        int mid=left+(right-left)/2;
+        mergeSort(nums,left,mid);
+        mergeSort(nums,mid+1,right);
+        merge(nums,left,mid,right);
+}
+private void merge(int[] nums, int left, int mid, int right) {
+        for (int i=left;i<=right;i++) {
+            helperPosition[i]=position[i];
+            helperShift[i]=shift[i];
+        }
+        int leftIndex=left,rightIndex=mid+1;
+        int curIndex=left;
+        while (leftIndex<=mid && rightIndex<=right) {
+            if (nums[helperPosition[leftIndex]]<=nums[helperPosition[rightIndex]]) {
+                shift[curIndex]=helperShift[leftIndex]+rightIndex-mid-1; // how many move from right to left
+                position[curIndex]=helperPosition[leftIndex++];
+            } else {
+                shift[curIndex]=helperShift[rightIndex];
+                position[curIndex]=helperPosition[rightIndex++];
+            }
+            curIndex++;
+        }
+        while (leftIndex<=mid) {
+                shift[curIndex]=helperShift[leftIndex]+rightIndex-mid-1; // how many move from right to left
+                position[curIndex]=helperPosition[leftIndex++];
+            curIndex++;
+        }
+}
+
+
+
+III. 怎样能得到current problem的解？
+
+Given an integer array nums, return the number of reverse pairs in the array.
+A reverse pair is a pair (i, j) where 0 <= i < j < nums.length and nums[i] > 2 * nums[j].
+
+现在要看的不是nums[i]>nums[j]的情况，而是nums[i]>nums[j]*2的情况，所以不能直接根据在左右两半归并时，对于每个左边的元素记录在右半边比它小的个数来解决。跟上一题相似，左半边数组元素之间的关系已经在下一层统计过了，右半边数组元素之间的关系也已经在下一层统计过了。在当前层需要统计的是“每个左半边数组里的元素”和“每个右半边数组里的元素”之间的关系。
+
+Input: nums = [2,4,3,5,1]
+         ->       [2,4]    +    [3,5,1]
+         ->     [2]+[4]   +  [3]+[5,1]
+         ->     [2]+[4]   +  [3]+[5]+[1]
+         ->     [2]+[4]   +  [3] + [1(0),5(1)]
+         -> [2(0),4(0)] + [1(0),3(1),5(1)]
+         -> [1(0),2(0),3(1),4(1),5(1)]
+         ->  ans = 3
+
+		[10,20,30,40,50]             [1,5,9,13,17,21]
+		[10,20,30,40,50]             [1|5,9,13,17,21]
+		[10,20,30,40,50]             [1,5,9|13,17,21]
+		[10,20,30,40,50]             [1,5,9,13|17,21]
+		[10,20,30,40,50]             [1,5,9,13,17|21]
+		[10,20,30,40,50]             [1,5,9,13,17,21|]
+
+因为当归并的时候，左半边都是排好序的，右半边也是排好序的，所以对于左半边第一个元素，我们可以在右半边设立一个挡板，挡板左边的数（仍然是右半边数组）都比左半边第一个元素的一半小，挡板右边的数都比左半边第一个元素的一半大。那么挡板左边有多少个数就是我们需要统计的一部分记过。当我们再看左半边第二个元素的时候，仍然能设立一个挡板，而且这个挡板是在原来挡板的右边。而且我们只需要这个挡板的位置，我们就知道右半边有多少个数是比左半边第二个元素的一半要大的。以此类推，我们需要捋一遍左半边的所有元素，每一次还有移动挡板，挡板会一直往右推，同时根据挡板位置累积计数。对于每一层recursion来讲，我们一共需要O(n)的时间来完成这个扫描+计算。
+
+
+High level:
+	用mergesort给nums排序，同时累积每个num在相应层进行归并时右半边数组里<num/2的数量，在完成排序后返回这个累积的number of pairs
+
+Data Structure:
+	helper[len] to helper merge
+	int ans to sum over the number of pairs 
+(no need to separate the result for different numbers, so we don’t need an ans array, furthermore there is no “order” of this result, so no index array is needed, we can directly sort on input nums array)
+
+Complexity:
+	TC: O(n+2nlogn) = O(nlogn)
+	SC: O(n+logn) = O(n)
+
+Code:
+
+int ans;
+int[] helper;
+public int reversePairs(int[] nums) {
+        ans=0;
+        int len=nums.length;
+        helper = new int[len];
+        mergeSort(nums,0,len-1);
+        return ans;
+}
+private void mergeSort(int[] nums, int left, int right) {
+        if (left==right) {return;}
+        int mid = left+(right-left)/2;
+        mergeSort(nums,left,mid);
+        mergeSort(nums,mid+1,right);
+        merge(nums,left,mid,right);
+}
+private void merge(int[] nums, int left, int mid, int right) {
+        int leftIndex=left,rightIndex=mid+1;
+        while (leftIndex<=mid) {
+	// just to deal with very large number when double it would exceed 2^31-1
+            if (rightIndex<=right && nums[leftIndex] > (long) nums[rightIndex]*2) {
+                rightIndex++;
+            } else {
+                leftIndex++;
+                ans=ans+rightIndex-mid-1;
+            }
+        }
+        for (int i=left;i<=right;i++) {helper[i]=nums[i];}
+        int curIndex=left;
+        leftIndex=left;rightIndex=mid+1;
+        while (leftIndex<=mid && rightIndex<=right) {
+            if (helper[leftIndex]<=helper[rightIndex]) {
+                nums[curIndex++]=helper[leftIndex++];
+            } else {
+                nums[curIndex++]=helper[rightIndex++];
+            }
+        }
+        while (leftIndex<=mid) {
+            nums[curIndex++]=helper[leftIndex++];
+        }
+}
+
