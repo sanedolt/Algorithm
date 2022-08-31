@@ -1,0 +1,307 @@
+818. Race Car
+Your car starts at position 0 and speed +1 on an infinite number line. Your car can go into negative positions. Your car drives automatically according to a sequence of instructions 'A' (accelerate) and 'R' (reverse):
+When you get an instruction 'A', your car does the following:
+position += speed
+speed *= 2                             以当前速度行进一秒，下一秒速度翻倍（可正可负）
+When you get an instruction 'R', your car does the following:
+If your speed is positive then speed = -1
+otherwise speed = 1
+Your position stays the same.          因为速度永不为0，速度反向归一
+For example, after commands "AAR", your car goes to positions 0 --> 1 --> 3 --> 3, and your speed goes to 1 --> 2 --> 4 --> -1.
+Given a target position target, return the length of the shortest sequence of instructions to get there.
+ 
+Example 1:
+Input: target = 3
+Output: 2
+Explanation: 
+The shortest instruction sequence is "AA".
+Your position goes from 0 --> 1 --> 3.
+
+Example 2:
+Input: target = 6
+Output: 5
+Explanation: 
+The shortest instruction sequence is "AAARA".
+Your position goes from 0 --> 1 --> 3 --> 7 --> 7 --> 6.
+
+ 
+Constraints:
+1 <= target <= 104
+ 
+Clarification: 
+only need length of the shortest sequence of instructions, not the instruction itself
+
+Assumption: 
+	target is positive, initial direction is positive
+
+Analyze:
+
+如果只沿一个方向，车的位置是
+0  1  3  7  15  31  63  127 …
+如果不是从0开始，而是从1开始：
+1  2  4  8  16  32  64  128 …
+所以沿一个方向行进的距离与时间的关系是
+2^k-1  k=0,1,2…
+
+初始速度是正的，目标位置是正的
+
+怎么到6?
+       A  A   A  R   A
+P: 0   1   3   7   7   6
+V: 1   2   4   8  -1  -2
+
+       R   A  R   A   A   A
+P: 0   0  -1  -1   0   2   6 
+V: 1  -1  -2   1   2   4   8
+
+先沿着正向走，有可能减少转向的次数
+
+如果操作要少就要尽量开快车，因为反向的操作后速度变为+-1，所以是减少动量的行为，不应该频繁做
+
+3a. 怎么最规律的达到一个位置？
+	每次走一步   RRA 操作 = 往前走一步
+      A  R  R  A  R  R  A   R  R   A   R  R  A   R  R  A     (3*6-2=16 steps)
+P: 0  1  1  1   2   2   2   3   3   3   4   4   4   5   5   5  6
+V: 1  2  -1 1   2  -1   1   2  -1  1    2  -1  1   2   -1  1  2
+
+	3b. 任何一条线路总可以表示成
+		A…ARA…ARA…ARA…A……
+		每一部分的A可以次数为0，那么两个R相连，等于用两次操作在刹车
+
+		那么走的位置就是
++(2^a-1)-(2^b-1)+(2^c-1)-(2^d-1)+...
+a,b,c,d是连续前进操作（A）的数量，可以为0
+3c. 整个路程
+	如果只有一段，就一定是第一条的情况，1,3,7,15,31…
+	如果只有两段，一定是先正后负 （6=7-1, 14=15-1 ...）
+	如果至少有三段，一定以+-+开头并以+-交替进行（-+-和+-0-是一样的）
+	要开快车会有一段正方向路程接近起点到终点的距离 2^k-1 <= i < 2^(k+1)-1
+
+
+	怎么到20？
+	如果最长路段<20
+
+20=7+7+7-1=15+7-1-1
+
+	20=7-1+7-0+7 
+	       A   A   A  R   A   R   A   A   A   R    R    A     A    A  （14）
+	P:  0  1   3   7   7    6    6   7   9  13   13  13   14   16   20
+	V:  1  2   4   8  -1   -2    1   2   4    8   -1    1      2    4     8
+
+	20=15-1+7-1 （7+7和15-1都是6步，但是少了-0的两步）
+	       A   A   A  A     R    A     R     A   A     A     R    A （12）
+	P:  0  1   3   7   15   15   14   14   15   17   21   21   20
+	V:  1  2   4   8   16    -1    -2     1    2     4     8     -1   -2
+
+	20=7-1+15-1   （同符号交换律）
+	       A   A   A   R   A   R   A   A    A    A     R     A    (12)
+	P:  0  1   3   7    7    6   6    7    9   13   21    21   20
+	V:  1  2   4   8   -1   -2   1    2    4     8   16     -1   -2
+
+	20=7-1+0-1+15 （不能使用连续的相同符号所以中间要加0）
+	       A   A   A   R   A   R   R   A    R   A    A   A    A       (13)
+	P:  0  1   3   7    7    6   6    6    5    5    6    8   12   20
+	V:  1  2   4   8   -1   -2   1   -1   -2   1    2    4    8    16
+
+	20=7-1+0-1+15=7-1+15-1+0 (肯定比上边多一步）
+
+在最长路段为15的情况下，怎么尽量通过子问题，找到现在问题（20）的答案？
+如果我们知道怎么到6，就可以沿正方向走15沿反方向走1 （先后顺序不定）， 而达到20
+
+
+
+如果我们知道怎么到5，不能直接沿正方向走15吗？
+我们不知道5的最短路径(AARRARRA/AAARARRA)最后是正方向还是负方向，需要转一次还是两次向才能沿正方向继续走15
+5在3和7之间，其最短路径要比4(AARRA)和6(AAARA/AARRAA)都要长，可能出现冗余的正负翻转
+所以实际上要找的是以下可能性里的最小值
+	5(-0/+15), 6(-1/+15), 8(-3/+15), 12(-7/+15)
+	
+-0,-1,-3,-7,15
+
+5-0+15
+5+15-0
+
+6-1+15
+6+15-1
+
+
+	如果最长路段>20
+	20=31-7-3-1=31+3+1-15=31+3-7-7
+
+	20=31-7+0-3+1-1 （6 segments）
+	       A   A   A   A    A     R   A   A    A    R    R    A     A     R     R    A    (16)
+	P:  0  1   3   7    15   31  31   30  28  24  24   24   23   21   21   21  20
+	V:  1  2   4   8    16   32   -1   -2   -4   -8    1    -1    -2   -4     1    -1  -2
+
+	20=31-15+3-0+1（5 segments）
+	       A   A   A   A    A     R   A   A    A    A    R    A     A    R     R    A    (16)
+	P:  0  1   3   7    15   31  31   30  28  24  16   16  17  19   19   19  20
+	V:  1  2   4   8    16   32   -1   -2   -4   -8  -16    1    2    4     -1    1   2
+
+	20=31-7+3-7 （4 segments）
+	       A   A   A   A    A     R   A   A    A    R    A    A    R    A     A    A    (16)
+	P:  0  1   3   7    15   31  31   30  28  24  24  25  27   27   26   24  20
+	V:  1  2   4   8    16   32   -1   -2   -4   -8    1    2    4    -1    -2    -4   -8
+
+	不但没有区别，而且都比最长路段是15的解更长
+	如果知道到达11的最短步数是10，那么从31返回到20的最短步数就是10
+	通过31到20的最短步数就是 5+1+10=16
+
+
+所以，我们可以把所有可能性分为三种情况
+
+正方向最长路段定于起点到终点的距离 1,3,7,15,31…
+正方向最长路段比起点到终点的距离多一点点，然后往回走
+正方向最长路段比起点到终点的距离少一点点，然后往前蹭（可以把这一段根据交换律放在后面，就是从某个子问题的结果出发，添加一段正方向的路段一段负方向的路段）
+
+Method 1: dijkstra
+
+High level: 
+set each “position” with number of steps (instructions) used as a vertex in graph, use the number of steps (instructions) of driving each segment (2^k-1) as a edge, find the minimum path from position 0 to position target
+
+Data structure: 
+	Priority Queue pq
+to select the shortest path in current queue
+the element (state) in queue is represented by 2 numbers: number of steps so far and the distance from its position to target, e.g. initial state is [0,target]
+
+integer array dist[i]: 
+the minimum number of steps needed to reach target from index i, e.g. dist[target]=0, we need to output dist[0]; 
+since we can be in negative location and we cannot have negative index, so we give an offset of index from the segment distance which is a little longer than the distance from source (0) and target, e.g. (k+1) in 2^k-1 <= i <=2^(k+1)-1
+
+BFS2 pattern:
+
+Step 1: Definition
+	Vertex: number of steps + position (distance to target)
+	Edge: segment (0,1,3,7,15,31…)
+
+Step 2: Initial case
+	[0,target] with dist[target+ceil]=0
+
+Step 3: Expand rule
+	Try to drive with all edges (within limit steps), if the distance of ending point to target is not too far and we either first reach this position or find a shorter path to this position, then we put this state into the priority queue, and updated the dist array
+
+Step 4: Fill in order
+	Always poll the state with minimum steps, and add more states into the queue, until the queue is empty (since we can reach target in later time, thus we don’t really need a priority queue, but a normal queue  is fine)
+
+Step 5: Return what
+	dist[0+ceil]
+
+Complexity:
+	TC: O(nlogn) from offer and poll of 2n~4n nodes, V~n, E~logn O(V*E)  -> O(V)
+SC: O(n) for 2n~4n nodes, or O(V)
+
+Code: 
+    public int racecar(int target) {      
+        int low = (int) (Math.log(target+1)/Math.log(2));
+        int high = low+1;
+        int ceil = (1<<high)-1;
+        int[] dist = new int[ceil*2+1]; // need steps to reach target from index (-ceil)
+        Arrays.fill(dist,6*ceil);
+        dist[target+ceil]=0;
+        PriorityQueue<int[]> pq = new PriorityQueue<int[]>((a,b)->Integer.compare(a[0],b[0]));
+	
+        // 1st element is steps have used, 2nd element is distance to target
+        pq.offer(new int[]{0,target});
+        
+        while (!pq.isEmpty()) {
+            int[] cur = pq.poll(); 
+// cur[0] is the path with minimum steps from queue, cur[1] is its difference to target
+            
+            for (int k = 0; k <= high; k++) {
+                int segment = (1<<k)-1;
+                int tar = segment - cur[1]; // the order of subtraction makes it +- interleaving
+	
+// suppose previous position p needs cur[1] distance to reach target
+	// p = target-cur[1]
+           // p’ = p + segment
+	// tar = p’-target = p+segment-target = segment - cur[1]
+
+	// p = target+cur[1]
+	// p’ = p - segment
+	// tar = target - p’ = target-p+segment = segment - cur[1]
+
+                int step = cur[0]+k+(tar==0?0:1); 
+// turn at each segment, so there is no need to turn if arrives at target
+
+// if the location is within the range, and the new number of steps is less than before
+                if (tar >= -ceil && tar <= ceil && step < dist[tar+ceil]) {
+                    pq.offer(new int[]{step,tar});
+                    dist[tar+ceil]=step;
+                }
+            }
+        }
+        return dist[ceil];
+    }
+
+
+
+
+Method 2: DP
+
+High level: 
+use dynamic programming and utilize result from subproblem to find answer for current problem
+
+Data structure: 
+integer array dp[i] 
+
+DP pattern:
+Step 1: definition 
+dp[i] represents the minimum number of instructions to reach position i
+e.g. dp[1]=1, dp[3]=2, dp[7]=3, dp[2]=4 ARRA
+
+Step 2: base case
+	dp[0]=0 an unused base case
+
+Step 3: Induction rule
+	if we have 2^k-1<=i<2^(k+1)          or k~log2(i+1)
+if  i==2^k-1 then this is case 1
+	dp[i]=k， e.g. dp[1]=1, dp[3]=2, dp[7]=3
+else i>2^k-1
+	dp[i]=min[ case 2, case 3s ]
+
+where case 2 is to overshoot with a segment of moving k+1 steps in positive direction to reach 2^(k+1)-1 and go back 2^(k+1)-1-i 
+	case 2 = k+1+1+dp[2^(k+1)-i]
+
+	case 3s are on top of each existing path from subproblems, add 2 segments with a segment of moving k steps in positive direction and another segment in negative direction with appropriate order
+	case 3 = min [  dp[i-(2^k-1)+(2^0-1)] + 1+0 + 1+k,
+                                     dp[i-(2^k-1)+(2^1-1)] + 1+1 + 1+k,
+                                     dp[i-(2^k-1)+(2^2-1)] + 1+2 + 1+k,
+                                     …
+                                     dp[i-(2^k-1)+(2^(k-1)-1)] + 1+k-1 + 1+k]
+
+Step 4: Fill in order
+	Fill in the array by position from 1 to target, if it falls in as case 1, then we can directly get the answer and go to the next position, if it doesn’t belong to case 1, then we use the induction rule above to get the value of current position
+
+Step 5: Return what
+	Since dp[i] is the minimum number of instructions to reach position i, to get the minimum number of instructions to reach position target, we need to return dp[target]
+
+Complexity:
+	TC: O(nlogn) since for each subproblem in n(=target) subproblems, we need to try all possible negative paths (-0, -1, -3, -7,-15…) which is shorter than the max positive path (2^k~i, so k is log(i))
+SC: O(n) for an array with length n+1
+
+
+Code:
+
+    public int racecar(int target) {
+        int[] dp = new int[target+1];
+        Arrays.fill(dp,3*target-2);
+        for (int i = 1; i <= target; i++) {
+            // find the floor and ceil which can be achieved by riding at one direction
+            int low = (int) (Math.log(i+1)/Math.log(2));
+            int floor = (1<<low) - 1;
+            int ceil = (1<<(low+1))-1;
+            if (i == floor) { // i==2^k-1
+                dp[i]=low; // k
+                continue;
+            }
+
+            for (int j = 0; j < low; j++) {                // case 3
+                dp[i]=Math.min(dp[i], dp[i-floor + ((1<<j)-1)] + 1+j+1+low );
+            }
+
+	// case 2
+            dp[i]=Math.min(dp[i], dp[ceil-i]+1+(low+1));
+        }
+        return dp[target];
+    }
+
